@@ -6,10 +6,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Create database
+// ================= DATABASE =================
 const db = new sqlite3.Database("./db.sqlite");
 
-// Create table
 db.run(`
 CREATE TABLE IF NOT EXISTS bets (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,36 +22,50 @@ CREATE TABLE IF NOT EXISTS bets (
 )
 `);
 
-// Test route
+// ================= ROUTES =================
+
+// ROOT (THIS FIXES YOUR ISSUE)
 app.get("/", (req, res) => {
   res.send("Diamond EV Backend Running");
 });
 
-// Get bets
+// GET ALL BETS
 app.get("/bets", (req, res) => {
-  db.all(`SELECT * FROM bets`, [], (err, rows) => {
-    if (err) return res.status(500).send(err);
+  db.all("SELECT * FROM bets", [], (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send("Database error");
+    }
     res.json(rows);
   });
 });
 
-// Save bet
+// SAVE BET
 app.post("/bet", (req, res) => {
   const { player, odds, ev, prob, edge } = req.body;
+
+  if (!player) {
+    return res.status(400).send("Missing player");
+  }
 
   db.run(
     `INSERT INTO bets (player, odds_taken, ev, prob, edge)
      VALUES (?, ?, ?, ?, ?)`,
     [player, odds, ev, prob, edge],
     function (err) {
-      if (err) return res.status(500).send(err);
-      res.json({ success: true });
+      if (err) {
+        console.error(err);
+        return res.status(500).send("Insert error");
+      }
+
+      res.json({ success: true, id: this.lastID });
     }
   );
 });
 
-// PORT FIX FOR RENDER
+// ================= SERVER =================
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
